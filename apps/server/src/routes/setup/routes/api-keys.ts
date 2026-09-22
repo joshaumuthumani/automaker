@@ -13,6 +13,7 @@ export function createApiKeysHandler() {
         hasAnthropicKey: !!getApiKey('anthropic') || !!process.env.ANTHROPIC_API_KEY,
         hasGoogleKey: !!getApiKey('google'),
         hasOpenaiKey: !!getApiKey('openai') || !!process.env.OPENAI_API_KEY,
+        hasLinearKey: !!getApiKey('linear') || !!process.env.LINEAR_API_KEY,
       });
     } catch (error) {
       logError(error, 'Get API keys failed');

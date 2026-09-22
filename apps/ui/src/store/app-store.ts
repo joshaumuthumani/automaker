@@ -289,6 +289,7 @@ const initialState: AppState = {
     google: '',
     openai: '',
     zai: '',
+    linear: '',
   },
   chatSessions: [],
   currentChatSession: null,

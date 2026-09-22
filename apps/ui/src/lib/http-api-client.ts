@@ -20,6 +20,7 @@ import type {
   AutoModeEvent,
   SpecRegenerationEvent,
   GitHubAPI,
+  LinearAPI,
   IssueValidationInput,
   IssueValidationEvent,
   IdeationAPI,
@@ -1501,6 +1502,7 @@ export class HttpApiClient implements ElectronAPI {
       hasAnthropicKey: boolean;
       hasGoogleKey: boolean;
       hasOpenaiKey: boolean;
+      hasLinearKey?: boolean;
     }> => this.get('/api/setup/api-keys'),
 
     getPlatform: (): Promise<{
@@ -2589,6 +2591,13 @@ export class HttpApiClient implements ElectronAPI {
       this.post('/api/github/pr-review-comments', { projectPath, prNumber }),
     resolveReviewThread: (projectPath: string, threadId: string, resolve: boolean) =>
       this.post('/api/github/resolve-pr-comment', { projectPath, threadId, resolve }),
+  };
+
+  // Linear API - credentials are app-level, so no project path is sent
+  linear: LinearAPI = {
+    checkConnection: (apiKey?: string) => this.post('/api/linear/check-connection', { apiKey }),
+    listIssues: () => this.post('/api/linear/issues', {}),
+    listComments: (issueId: string) => this.post('/api/linear/issue-comments', { issueId }),
   };
 
   // Workspace API

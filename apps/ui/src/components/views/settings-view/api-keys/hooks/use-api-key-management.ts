@@ -21,6 +21,7 @@ interface ApiKeyStatus {
   hasGoogleKey: boolean;
   hasOpenaiKey: boolean;
   hasZaiKey: boolean;
+  hasLinearKey: boolean;
 }
 
 /** Shape of the configure API response */
@@ -45,6 +46,7 @@ interface ApiKeyStatusResponse {
   hasGoogleKey: boolean;
   hasOpenaiKey: boolean;
   hasZaiKey?: boolean;
+  hasLinearKey?: boolean;
 }
 
 /**
@@ -61,12 +63,14 @@ export function useApiKeyManagement() {
   const [googleKey, setGoogleKey] = useState<string>(apiKeys.google);
   const [openaiKey, setOpenaiKey] = useState<string>(apiKeys.openai);
   const [zaiKey, setZaiKey] = useState<string>(apiKeys.zai);
+  const [linearKey, setLinearKey] = useState<string>(apiKeys.linear);
 
   // Visibility toggles
   const [showAnthropicKey, setShowAnthropicKey] = useState(false);
   const [showGoogleKey, setShowGoogleKey] = useState(false);
   const [showOpenaiKey, setShowOpenaiKey] = useState(false);
   const [showZaiKey, setShowZaiKey] = useState(false);
+  const [showLinearKey, setShowLinearKey] = useState(false);
 
   // Test connection states
   const [testingConnection, setTestingConnection] = useState(false);
@@ -77,6 +81,8 @@ export function useApiKeyManagement() {
   const [openaiTestResult, setOpenaiTestResult] = useState<TestResult | null>(null);
   const [testingZaiConnection, setTestingZaiConnection] = useState(false);
   const [zaiTestResult, setZaiTestResult] = useState<TestResult | null>(null);
+  const [testingLinearConnection, setTestingLinearConnection] = useState(false);
+  const [linearTestResult, setLinearTestResult] = useState<TestResult | null>(null);
 
   // API key status from environment
   const [apiKeyStatus, setApiKeyStatus] = useState<ApiKeyStatus | null>(null);
@@ -90,6 +96,7 @@ export function useApiKeyManagement() {
     setGoogleKey(apiKeys.google);
     setOpenaiKey(apiKeys.openai);
     setZaiKey(apiKeys.zai);
+    setLinearKey(apiKeys.linear);
   }, [apiKeys]);
 
   // Check API key status from environment on mount
@@ -105,6 +112,7 @@ export function useApiKeyManagement() {
               hasGoogleKey: status.hasGoogleKey,
               hasOpenaiKey: status.hasOpenaiKey,
               hasZaiKey: status.hasZaiKey || false,
+              hasLinearKey: status.hasLinearKey || false,
             });
           }
         } catch (error) {
@@ -251,8 +259,79 @@ export function useApiKeyManagement() {
     }
   };
 
+  // Test Linear connection
+  const handleTestLinearConnection = async (): Promise<void> => {
+    // Validate input first
+    if (!linearKey || linearKey.trim().length === 0) {
+      setLinearTestResult({
+        success: false,
+        message: 'Please enter an API key to test.',
+      });
+      return;
+    }
+
+    setTestingLinearConnection(true);
+    setLinearTestResult(null);
+
+    try {
+      const api = getElectronAPI();
+      // Pass the current input value to test unsaved keys
+      const response = await api.linear?.checkConnection(linearKey.trim());
+
+      if (response?.success && response.connected) {
+        setLinearTestResult({
+          success: true,
+          message: response.viewer
+            ? `Connection successful! Signed in as ${response.viewer.name}.`
+            : 'Connection successful!',
+        });
+      } else {
+        setLinearTestResult({
+          success: false,
+          message: response?.error || 'Failed to connect to Linear API.',
+        });
+      }
+    } catch {
+      setLinearTestResult({
+        success: false,
+        message: 'Network error. Please check your connection.',
+      });
+    } finally {
+      setTestingLinearConnection(false);
+    }
+  };
+
+  /**
+   * Persist the Linear key on the server - the Linear routes read it from there,
+   * not from the browser store.
+   */
+  const saveLinearKey = async (): Promise<void> => {
+    const trimmedKey = linearKey.trim();
+    if (!trimmedKey) {
+      return;
+    }
+
+    try {
+      const api = getElectronAPI();
+      const result = await api.setup?.storeApiKey('linear', trimmedKey);
+      if (!result?.success) {
+        logger.error('Failed to store Linear API key:', result?.error);
+        return;
+      }
+      setApiKeys({ linear: linearKey });
+      // Refresh the connection check and any cached issues so a newly valid
+      // key doesn't leave a stale empty/error result in the Issues view
+      await queryClient.invalidateQueries({ queryKey: queryKeys.linear.connection() });
+      await queryClient.invalidateQueries({ queryKey: queryKeys.linear.issues() });
+    } catch (error) {
+      logger.error('Failed to store Linear API key:', error);
+    }
+  };
+
   // Save API keys
   const handleSave = async (): Promise<void> => {
+    await saveLinearKey();
+
     // Configure z.ai service on the server with the new key
     if (zaiKey && zaiKey.trim().length > 0) {
       try {
@@ -363,6 +442,15 @@ export function useApiKeyManagement() {
       testing: testingZaiConnection,
       onTest: handleTestZaiConnection,
       result: zaiTestResult,
+    },
+    linear: {
+      value: linearKey,
+      setValue: setLinearKey,
+      show: showLinearKey,
+      setShow: setShowLinearKey,
+      testing: testingLinearConnection,
+      onTest: handleTestLinearConnection,
+      result: linearTestResult,
     },
   };
 

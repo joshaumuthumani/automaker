@@ -3,4 +3,5 @@ export interface ApiKeys {
   google: string;
   openai: string;
   zai: string;
+  linear: string;
 }

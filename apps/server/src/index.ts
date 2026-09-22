@@ -71,6 +71,7 @@ import { ZaiUsageService } from './services/zai-usage-service.js';
 import { createGeminiRoutes } from './routes/gemini/index.js';
 import { GeminiUsageService } from './services/gemini-usage-service.js';
 import { createGitHubRoutes } from './routes/github/index.js';
+import { createLinearRoutes } from './routes/linear/index.js';
 import { createContextRoutes } from './routes/context/index.js';
 import { createBacklogPlanRoutes } from './routes/backlog-plan/index.js';
 import { cleanupStaleValidations } from './routes/github/routes/validation-common.js';
@@ -510,6 +511,7 @@ app.use('/api/codex', createCodexRoutes(codexUsageService, codexModelCacheServic
 app.use('/api/zai', createZaiRoutes(zaiUsageService, settingsService));
 app.use('/api/gemini', createGeminiRoutes(geminiUsageService, events));
 app.use('/api/github', createGitHubRoutes(events, settingsService));
+app.use('/api/linear', createLinearRoutes());
 app.use('/api/context', createContextRoutes(settingsService));
 app.use('/api/backlog-plan', createBacklogPlanRoutes(events, settingsService));
 app.use('/api/mcp', createMCPRoutes(mcpTestService));

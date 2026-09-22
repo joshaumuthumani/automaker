@@ -9,6 +9,7 @@ import {
   Terminal,
   CircleDot,
   GitPullRequest,
+  ListTodo,
   Lightbulb,
   Brain,
   Network,
@@ -20,6 +21,7 @@ import type { NavSection, NavItem } from '../types';
 import type { KeyboardShortcut } from '@/hooks/use-keyboard-shortcuts';
 import type { Project } from '@/lib/electron';
 import { getElectronAPI } from '@/lib/electron';
+import { useLinearConnection } from '@/hooks/queries';
 
 interface UseNavigationProps {
   shortcuts: {
@@ -101,6 +103,9 @@ export function useNavigation({
 
     checkGitHubRemote();
   }, [currentProject?.path]);
+
+  // Linear is connected app-wide via an API key, not per project
+  const { data: hasLinearConnected = false } = useLinearConnection();
 
   // Build navigation sections
   const navSections: NavSection[] = useMemo(() => {
@@ -232,6 +237,22 @@ export function useNavigation({
       });
     }
 
+    // Add Linear section if a Linear API key is configured and working
+    if (hasLinearConnected) {
+      sections.push({
+        label: 'Linear',
+        items: [
+          {
+            id: 'linear-issues',
+            label: 'Issues',
+            icon: ListTodo,
+          },
+        ],
+        collapsible: true,
+        defaultCollapsed: true,
+      });
+    }
+
     // Add Notifications and Project Settings as a standalone section (no label for visual separation)
     sections.push({
       label: '',
@@ -259,6 +280,7 @@ export function useNavigation({
     hideContext,
     hideTerminal,
     hasGitHubRemote,
+    hasLinearConnected,
     unviewedValidationsCount,
     unreadNotificationsCount,
     isSpecGenerating,
