@@ -96,8 +96,10 @@ export function ApiKeysSection() {
       const result = await api.setup.deleteApiKey('linear');
       if (result.success) {
         setApiKeys({ ...apiKeys, linear: '' });
-        // Refresh the connection check so the sidebar hides the Linear section
+        // Refresh the connection check so the sidebar hides the Linear section,
+        // and drop any cached issues fetched with the now-deleted key
         await queryClient.invalidateQueries({ queryKey: queryKeys.linear.connection() });
+        await queryClient.invalidateQueries({ queryKey: queryKeys.linear.issues() });
         toast.success('Linear API key deleted');
       } else {
         toast.error(result.error || 'Failed to delete API key');

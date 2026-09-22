@@ -2,6 +2,7 @@ import { useState, useCallback, useMemo, type ComponentProps } from 'react';
 import { createLogger } from '@automaker/utils/logger';
 import { ListTodo, SearchX } from 'lucide-react';
 import { useQueryClient } from '@tanstack/react-query';
+import { useNavigate } from '@tanstack/react-router';
 import { getElectronAPI, type LinearIssue } from '@/lib/electron';
 import { useAppStore } from '@/store/app-store';
 import { Button } from '@/components/ui/button';
@@ -25,6 +26,7 @@ const LINEAR_FEATURE_CATEGORY = 'From Linear';
 type AddFeatureData = Parameters<ComponentProps<typeof AddFeatureDialog>['onAdd']>[0];
 
 export function LinearIssuesView() {
+  const navigate = useNavigate();
   const [selectedIssue, setSelectedIssue] = useState<LinearIssue | null>(null);
 
   // Add Feature dialog state
@@ -192,7 +194,17 @@ export function LinearIssuesView() {
   }
 
   if (error) {
-    return <ErrorState error={error} title="Failed to Load Issues" onRetry={refresh} />;
+    // A "not connected" error means retrying will just fail again - route the
+    // user to Settings to fix the key instead of a dead-end retry button.
+    const isNotConnected = error.includes('Add a Linear API key in Settings');
+    return (
+      <ErrorState
+        error={error}
+        title="Failed to Load Issues"
+        onRetry={isNotConnected ? () => navigate({ to: '/settings' }) : refresh}
+        retryText={isNotConnected ? 'Go to Settings' : undefined}
+      />
+    );
   }
 
   const totalIssues = filteredOpenIssues.length + filteredClosedIssues.length;

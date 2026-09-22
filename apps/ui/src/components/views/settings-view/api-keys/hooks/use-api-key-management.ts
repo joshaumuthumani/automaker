@@ -319,8 +319,10 @@ export function useApiKeyManagement() {
         return;
       }
       setApiKeys({ linear: linearKey });
-      // Refresh the connection check so the sidebar picks up the new key
+      // Refresh the connection check and any cached issues so a newly valid
+      // key doesn't leave a stale empty/error result in the Issues view
       await queryClient.invalidateQueries({ queryKey: queryKeys.linear.connection() });
+      await queryClient.invalidateQueries({ queryKey: queryKeys.linear.issues() });
     } catch (error) {
       logger.error('Failed to store Linear API key:', error);
     }

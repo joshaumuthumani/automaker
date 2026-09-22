@@ -30,7 +30,7 @@ export interface LinearConnectionStatus {
 export async function checkLinearConnection(
   candidateKey?: string
 ): Promise<LinearConnectionStatus> {
-  const apiKey = candidateKey || getLinearApiKey();
+  const apiKey = candidateKey?.trim() ? candidateKey : getLinearApiKey();
   if (!apiKey) {
     return { connected: false, viewer: null };
   }
