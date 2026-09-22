@@ -444,6 +444,84 @@ export interface GitHubAPI {
   }>;
 }
 
+// Linear types
+export interface LinearLabel {
+  id: string;
+  name: string;
+  color: string;
+}
+
+export interface LinearUser {
+  id: string;
+  name: string;
+  avatarUrl?: string;
+}
+
+export interface LinearTeam {
+  id: string;
+  name: string;
+  key: string;
+}
+
+export interface LinearState {
+  id: string;
+  name: string;
+  /** Workflow state type: triage, backlog, unstarted, started, completed or canceled */
+  type: string;
+  color: string;
+}
+
+export interface LinearIssue {
+  id: string;
+  /** Human-readable key, e.g. ENG-123 */
+  identifier: string;
+  title: string;
+  description: string | null;
+  url: string;
+  /** 0 = none, 1 = urgent, 2 = high, 3 = medium, 4 = low */
+  priority: number;
+  state: LinearState;
+  labels: LinearLabel[];
+  assignee: LinearUser | null;
+  team: LinearTeam | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface LinearComment {
+  id: string;
+  body: string;
+  user: LinearUser | null;
+  createdAt: string;
+}
+
+export interface LinearAPI {
+  /**
+   * Check whether a Linear API key can reach the Linear API.
+   * Pass a key to test one before saving it; omit it to test the stored key.
+   */
+  checkConnection: (apiKey?: string) => Promise<{
+    success: boolean;
+    connected?: boolean;
+    viewer?: { id: string; name: string } | null;
+    error?: string;
+  }>;
+  /** List issues assigned to the authenticated Linear user */
+  listIssues: () => Promise<{
+    success: boolean;
+    openIssues?: LinearIssue[];
+    closedIssues?: LinearIssue[];
+    error?: string;
+  }>;
+  /** Fetch comments for a specific issue */
+  listComments: (issueId: string) => Promise<{
+    success: boolean;
+    comments?: LinearComment[];
+    totalCount?: number;
+    error?: string;
+  }>;
+}
+
 // Spec Regeneration types
 export type SpecRegenerationEvent =
   | { type: 'spec_regeneration_progress'; content: string; projectPath: string }
@@ -787,6 +865,7 @@ export interface ElectronAPI {
   features?: FeaturesAPI;
   runningAgents?: RunningAgentsAPI;
   github?: GitHubAPI;
+  linear?: LinearAPI;
   enhancePrompt?: {
     enhance: (
       originalText: string,
@@ -1451,6 +1530,9 @@ const _getMockElectronAPI = (): ElectronAPI => {
     // Mock GitHub API
     github: createMockGitHubAPI(),
 
+    // Mock Linear API
+    linear: createMockLinearAPI(),
+
     // Mock Claude API
     claude: {
       getUsage: async () => {
@@ -1598,6 +1680,7 @@ interface SetupAPI {
     hasAnthropicKey: boolean;
     hasGoogleKey: boolean;
     hasOpenaiKey: boolean;
+    hasLinearKey?: boolean;
   }>;
   deleteApiKey: (
     provider: string
@@ -4157,6 +4240,36 @@ function createMockGitHubAPI(): GitHubAPI {
       return {
         success: true,
         isResolved: resolve,
+      };
+    },
+  };
+}
+
+// Mock Linear API implementation
+function createMockLinearAPI(): LinearAPI {
+  return {
+    checkConnection: async (apiKey?: string) => {
+      console.log('[Mock] Checking Linear connection', { hasApiKey: !!apiKey });
+      return {
+        success: true,
+        connected: false,
+        viewer: null,
+      };
+    },
+    listIssues: async () => {
+      console.log('[Mock] Listing Linear issues');
+      return {
+        success: true,
+        openIssues: [],
+        closedIssues: [],
+      };
+    },
+    listComments: async (issueId: string) => {
+      console.log('[Mock] Getting Linear issue comments:', issueId);
+      return {
+        success: true,
+        comments: [],
+        totalCount: 0,
       };
     },
   };

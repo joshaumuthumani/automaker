@@ -23,6 +23,9 @@ export {
   useGitHubPRReviewComments,
 } from './use-github';
 
+// Linear
+export { useLinearIssues, useLinearConnection, useLinearIssueComments } from './use-linear';
+
 // Usage
 export { useClaudeUsage, useCodexUsage, useZaiUsage, useGeminiUsage } from './use-usage';
 

@@ -1,7 +1,7 @@
 import type { Dispatch, SetStateAction } from 'react';
 import type { ApiKeys } from '@/store/app-store';
 
-export type ProviderKey = 'anthropic' | 'google' | 'openai' | 'zai';
+export type ProviderKey = 'anthropic' | 'google' | 'openai' | 'zai' | 'linear';
 
 export interface ProviderConfig {
   key: ProviderKey;
@@ -68,6 +68,15 @@ export interface ProviderConfigParams {
     onTest: () => Promise<void>;
     result: { success: boolean; message: string } | null;
   };
+  linear: {
+    value: string;
+    setValue: Dispatch<SetStateAction<string>>;
+    show: boolean;
+    setShow: Dispatch<SetStateAction<boolean>>;
+    testing: boolean;
+    onTest: () => Promise<void>;
+    result: { success: boolean; message: string } | null;
+  };
 }
 
 export const buildProviderConfigs = ({
@@ -75,6 +84,7 @@ export const buildProviderConfigs = ({
   anthropic,
   openai,
   zai,
+  linear,
 }: ProviderConfigParams): ProviderConfig[] => [
   {
     key: 'anthropic',
@@ -152,6 +162,32 @@ export const buildProviderConfigs = ({
     descriptionPrefix: 'Used for z.ai usage tracking and GLM models. Get your key at',
     descriptionLinkHref: 'https://z.ai',
     descriptionLinkText: 'z.ai',
+    descriptionSuffix: '.',
+  },
+  {
+    key: 'linear',
+    label: 'Linear API Key',
+    inputId: 'linear-key',
+    placeholder: 'lin_api_...',
+    value: linear.value,
+    setValue: linear.setValue,
+    showValue: linear.show,
+    setShowValue: linear.setShow,
+    hasStoredKey: apiKeys.linear,
+    inputTestId: 'linear-api-key-input',
+    toggleTestId: 'toggle-linear-visibility',
+    testButton: {
+      onClick: linear.onTest,
+      disabled: !linear.value || linear.testing,
+      loading: linear.testing,
+      testId: 'test-linear-connection',
+    },
+    result: linear.result,
+    resultTestId: 'linear-test-connection-result',
+    resultMessageTestId: 'linear-test-connection-message',
+    descriptionPrefix: 'Used for the Linear issues sidebar. Create a personal API key at',
+    descriptionLinkHref: 'https://linear.app/settings/account/security',
+    descriptionLinkText: 'linear.app',
     descriptionSuffix: '.',
   },
   // {

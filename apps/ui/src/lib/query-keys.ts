@@ -78,6 +78,19 @@ export const queryKeys = {
   },
 
   // ============================================
+  // Linear
+  // ============================================
+  // Linear credentials are app-level, so these keys are not project-scoped.
+  linear: {
+    /** Linear issues assigned to the authenticated user */
+    issues: () => ['linear', 'issues'] as const,
+    /** Comments on a Linear issue */
+    issueComments: (issueId: string) => ['linear', 'issues', issueId, 'comments'] as const,
+    /** Linear connection status */
+    connection: () => ['linear', 'connection'] as const,
+  },
+
+  // ============================================
   // Settings
   // ============================================
   settings: {

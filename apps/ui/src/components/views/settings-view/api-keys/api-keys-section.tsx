@@ -9,14 +9,18 @@ import { SecurityNotice } from './security-notice';
 import { useApiKeyManagement } from './hooks/use-api-key-management';
 import { cn } from '@/lib/utils';
 import { useState, useCallback } from 'react';
+import { useQueryClient } from '@tanstack/react-query';
 import { getElectronAPI } from '@/lib/electron';
+import { queryKeys } from '@/lib/query-keys';
 import { toast } from 'sonner';
 
 export function ApiKeysSection() {
   const { apiKeys, setApiKeys } = useAppStore();
   const { claudeAuthStatus, setClaudeAuthStatus, setCodexAuthStatus } = useSetupStore();
+  const queryClient = useQueryClient();
   const [isDeletingAnthropicKey, setIsDeletingAnthropicKey] = useState(false);
   const [isDeletingOpenaiKey, setIsDeletingOpenaiKey] = useState(false);
+  const [isDeletingLinearKey, setIsDeletingLinearKey] = useState(false);
 
   const { providerConfigParams, handleSave, saved } = useApiKeyManagement();
 
@@ -78,6 +82,32 @@ export function ApiKeysSection() {
       setIsDeletingOpenaiKey(false);
     }
   }, [apiKeys, setApiKeys, setCodexAuthStatus]);
+
+  // Delete Linear API key
+  const deleteLinearKey = useCallback(async () => {
+    setIsDeletingLinearKey(true);
+    try {
+      const api = getElectronAPI();
+      if (!api.setup?.deleteApiKey) {
+        toast.error('Delete API not available');
+        return;
+      }
+
+      const result = await api.setup.deleteApiKey('linear');
+      if (result.success) {
+        setApiKeys({ ...apiKeys, linear: '' });
+        // Refresh the connection check so the sidebar hides the Linear section
+        await queryClient.invalidateQueries({ queryKey: queryKeys.linear.connection() });
+        toast.success('Linear API key deleted');
+      } else {
+        toast.error(result.error || 'Failed to delete API key');
+      }
+    } catch {
+      toast.error('Failed to delete API key');
+    } finally {
+      setIsDeletingLinearKey(false);
+    }
+  }, [apiKeys, setApiKeys, queryClient]);
 
   return (
     <div
@@ -192,6 +222,23 @@ export function ApiKeysSection() {
                 <Trash2 className="w-4 h-4 mr-2" />
               )}
               Delete OpenAI Key
+            </Button>
+          )}
+
+          {apiKeys.linear && (
+            <Button
+              onClick={deleteLinearKey}
+              disabled={isDeletingLinearKey}
+              variant="outline"
+              className="h-10 border-red-500/30 text-red-500 hover:bg-red-500/10 hover:border-red-500/50"
+              data-testid="delete-linear-key"
+            >
+              {isDeletingLinearKey ? (
+                <Spinner size="sm" className="mr-2" />
+              ) : (
+                <Trash2 className="w-4 h-4 mr-2" />
+              )}
+              Delete Linear Key
             </Button>
           )}
         </div>

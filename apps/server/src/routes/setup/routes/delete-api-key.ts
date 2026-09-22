@@ -47,13 +47,14 @@ export function createDeleteApiKeyHandler() {
       const envKeyMap: Record<string, string> = {
         anthropic: 'ANTHROPIC_API_KEY',
         openai: 'OPENAI_API_KEY',
+        linear: 'LINEAR_API_KEY',
       };
 
       const envKey = envKeyMap[provider];
       if (!envKey) {
         res.status(400).json({
           success: false,
-          error: `Unknown provider: ${provider}. Only anthropic and openai are supported.`,
+          error: `Unknown provider: ${provider}. Only anthropic, openai and linear are supported.`,
         });
         return;
       }

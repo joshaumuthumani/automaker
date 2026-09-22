@@ -37,6 +37,8 @@ export const STALE_TIMES = {
   FEATURES: 60 * 1000 * MOBILE_STALE_MULTIPLIER, // 1 min (3 min on mobile)
   /** GitHub data is relatively stable */
   GITHUB: 2 * 60 * 1000 * MOBILE_STALE_MULTIPLIER, // 2 min (6 min on mobile)
+  /** Linear data is relatively stable */
+  LINEAR: 2 * 60 * 1000 * MOBILE_STALE_MULTIPLIER, // 2 min (6 min on mobile)
   /** Running agents state changes very frequently */
   RUNNING_AGENTS: 5 * 1000 * MOBILE_STALE_MULTIPLIER, // 5s (15s on mobile)
   /** Agent output changes during streaming */
