@@ -1,8 +1,9 @@
-import { Circle, CheckCircle2, ExternalLink, User } from 'lucide-react';
+import { Circle, CheckCircle2, CheckCircle, ExternalLink, Sparkles, User } from 'lucide-react';
+import { Spinner } from '@/components/ui/spinner';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 import type { LinearIssueRowProps } from '../types';
-import { isClosedState } from '../utils';
+import { isClosedState, isValidationStale } from '../utils';
 
 export function IssueRow({
   issue,
@@ -10,8 +11,22 @@ export function IssueRow({
   onClick,
   onOpenExternal,
   formatDate,
+  cachedValidation,
+  isValidating,
 }: LinearIssueRowProps) {
   const isClosed = isClosedState(issue.state);
+
+  const isValidationStaleValue = cachedValidation
+    ? isValidationStale(cachedValidation.validatedAt)
+    : false;
+
+  // Validation exists, is fresh, and has not been opened yet
+  const hasUnviewedValidation =
+    cachedValidation && !cachedValidation.viewedAt && !isValidationStaleValue;
+
+  // Validation exists, is fresh, and has already been opened
+  const hasViewedValidation =
+    cachedValidation && cachedValidation.viewedAt && !isValidationStaleValue;
 
   return (
     <div
@@ -72,6 +87,30 @@ export function IssueRow({
             <span className="inline-flex items-center gap-1 px-1.5 py-0.5 text-[10px] font-medium rounded-full bg-blue-500/10 text-blue-500 border border-blue-500/20">
               <User className="h-3 w-3" />
               {issue.assignee.name}
+            </span>
+          )}
+
+          {/* Validating indicator */}
+          {isValidating && (
+            <span className="inline-flex items-center gap-1 px-1.5 py-0.5 text-[10px] font-medium rounded-full bg-primary/10 text-primary border border-primary/20 animate-in fade-in duration-200">
+              <Spinner size="xs" />
+              Analyzing...
+            </span>
+          )}
+
+          {/* Unviewed validation indicator */}
+          {!isValidating && hasUnviewedValidation && (
+            <span className="inline-flex items-center gap-1 px-1.5 py-0.5 text-[10px] font-medium rounded-full bg-amber-500/10 text-amber-500 border border-amber-500/20 animate-in fade-in duration-200">
+              <Sparkles className="h-3 w-3" />
+              Analysis Ready
+            </span>
+          )}
+
+          {/* Viewed validation indicator */}
+          {!isValidating && hasViewedValidation && (
+            <span className="inline-flex items-center gap-1 px-1.5 py-0.5 text-[10px] font-medium rounded-full bg-green-500/10 text-green-500 border border-green-500/20">
+              <CheckCircle className="h-3 w-3" />
+              Validated
             </span>
           )}
         </div>

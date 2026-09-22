@@ -1,5 +1,9 @@
 import type { LinearState } from '@/lib/electron';
-import { LINEAR_CLOSED_STATE_TYPES, LINEAR_PRIORITY_LABELS } from './constants';
+import {
+  LINEAR_CLOSED_STATE_TYPES,
+  LINEAR_PRIORITY_LABELS,
+  VALIDATION_STALENESS_HOURS,
+} from './constants';
 
 /**
  * Whether a Linear workflow state means the issue is finished.
@@ -14,6 +18,11 @@ export function isClosedState(state: LinearState | null | undefined): boolean {
  */
 export function getPriorityLabel(priority: number): string {
   return LINEAR_PRIORITY_LABELS[priority] ?? 'No priority';
+}
+
+export function isValidationStale(validatedAt: string): boolean {
+  const hoursSinceValidation = (Date.now() - new Date(validatedAt).getTime()) / (1000 * 60 * 60);
+  return hoursSinceValidation > VALIDATION_STALENESS_HOURS;
 }
 
 export function formatDate(dateString: string): string {

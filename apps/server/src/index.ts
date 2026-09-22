@@ -75,6 +75,7 @@ import { createLinearRoutes } from './routes/linear/index.js';
 import { createContextRoutes } from './routes/context/index.js';
 import { createBacklogPlanRoutes } from './routes/backlog-plan/index.js';
 import { cleanupStaleValidations } from './routes/github/routes/validation-common.js';
+import { cleanupStaleValidations as cleanupStaleLinearValidations } from './routes/linear/routes/validation-common.js';
 import { createMCPRoutes } from './routes/mcp/index.js';
 import { MCPTestService } from './services/mcp-test-service.js';
 import { createPipelineRoutes } from './routes/pipeline/index.js';
@@ -467,7 +468,7 @@ eventHookService.initialize(events, settingsService, eventHistoryService, featur
 // Run stale validation cleanup every hour to prevent memory leaks from crashed validations
 const VALIDATION_CLEANUP_INTERVAL_MS = 60 * 60 * 1000; // 1 hour
 setInterval(() => {
-  const cleaned = cleanupStaleValidations();
+  const cleaned = cleanupStaleValidations() + cleanupStaleLinearValidations();
   if (cleaned > 0) {
     logger.info(`Cleaned up ${cleaned} stale validation entries`);
   }
@@ -511,7 +512,7 @@ app.use('/api/codex', createCodexRoutes(codexUsageService, codexModelCacheServic
 app.use('/api/zai', createZaiRoutes(zaiUsageService, settingsService));
 app.use('/api/gemini', createGeminiRoutes(geminiUsageService, events));
 app.use('/api/github', createGitHubRoutes(events, settingsService));
-app.use('/api/linear', createLinearRoutes());
+app.use('/api/linear', createLinearRoutes(events, settingsService));
 app.use('/api/context', createContextRoutes(settingsService));
 app.use('/api/backlog-plan', createBacklogPlanRoutes(events, settingsService));
 app.use('/api/mcp', createMCPRoutes(mcpTestService));

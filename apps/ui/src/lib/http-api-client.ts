@@ -23,6 +23,8 @@ import type {
   LinearAPI,
   IssueValidationInput,
   IssueValidationEvent,
+  LinearIssueValidationInput,
+  LinearIssueValidationEvent,
   IdeationAPI,
   IdeaCategory,
   AnalysisSuggestion,
@@ -589,6 +591,7 @@ type EventType =
   | 'auto-mode:event'
   | 'spec-regeneration:event'
   | 'issue-validation:event'
+  | 'linear-validation:event'
   | 'backlog-plan:event'
   | 'ideation:stream'
   | 'ideation:analysis'
@@ -2598,6 +2601,35 @@ export class HttpApiClient implements ElectronAPI {
     checkConnection: (apiKey?: string) => this.post('/api/linear/check-connection', { apiKey }),
     listIssues: () => this.post('/api/linear/issues', {}),
     listComments: (issueId: string) => this.post('/api/linear/issue-comments', { issueId }),
+    // Validation runs against a project's codebase, so these do take a project path
+    validateIssue: (
+      projectPath: string,
+      issue: LinearIssueValidationInput,
+      model?: ModelId,
+      thinkingLevel?: ThinkingLevel,
+      reasoningEffort?: ReasoningEffort,
+      providerId?: string
+    ) =>
+      this.post('/api/linear/validate-issue', {
+        projectPath,
+        ...issue,
+        model,
+        thinkingLevel,
+        reasoningEffort,
+        providerId,
+      }),
+    getValidationStatus: (projectPath: string, issueIdentifier?: string) =>
+      this.post('/api/linear/validation-status', { projectPath, issueIdentifier }),
+    stopValidation: (projectPath: string, issueIdentifier: string) =>
+      this.post('/api/linear/validation-stop', { projectPath, issueIdentifier }),
+    getValidations: (projectPath: string, issueIdentifier?: string) =>
+      this.post('/api/linear/validations', { projectPath, issueIdentifier }),
+    deleteValidation: (projectPath: string, issueIdentifier: string) =>
+      this.post('/api/linear/validation-delete', { projectPath, issueIdentifier }),
+    markValidationViewed: (projectPath: string, issueIdentifier: string) =>
+      this.post('/api/linear/validation-mark-viewed', { projectPath, issueIdentifier }),
+    onValidationEvent: (callback: (event: LinearIssueValidationEvent) => void) =>
+      this.subscribeToEvent('linear-validation:event', callback as EventCallback),
   };
 
   // Workspace API

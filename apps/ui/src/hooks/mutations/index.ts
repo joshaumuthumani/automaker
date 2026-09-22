@@ -67,6 +67,9 @@ export {
   useResolveReviewThread,
 } from './use-github-mutations';
 
+// Linear mutations
+export { useValidateLinearIssue, useMarkLinearValidationViewed } from './use-linear-mutations';
+
 // Ideation mutations
 export { useGenerateIdeationSuggestions } from './use-ideation-mutations';
 

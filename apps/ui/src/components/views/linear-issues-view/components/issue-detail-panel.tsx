@@ -1,7 +1,11 @@
 import {
   Circle,
   CheckCircle2,
+  CheckCircle,
+  Clock,
   X,
+  Wand2,
+  RefreshCw,
   ExternalLink,
   User,
   Flag,
@@ -14,31 +18,52 @@ import {
 import { useState } from 'react';
 import { Spinner } from '@/components/ui/spinner';
 import { Button } from '@/components/ui/button';
+import { Checkbox } from '@/components/ui/checkbox';
 import { Markdown } from '@/components/ui/markdown';
 import { cn } from '@/lib/utils';
 import type { LinearIssueDetailPanelProps } from '../types';
-import { getPriorityLabel, isClosedState } from '../utils';
+import { getPriorityLabel, isClosedState, isValidationStale } from '../utils';
+import { ModelOverrideTrigger } from '@/components/shared';
 import { useIssueComments } from '../hooks';
 import { CommentItem } from './comment-item';
 
 export function IssueDetailPanel({
   issue,
+  validatingIssues,
+  cachedValidations,
+  onValidateIssue,
+  onViewCachedValidation,
   onOpenInLinear,
   onClose,
+  onShowRevalidateConfirm,
   onCreateFeature,
   formatDate,
+  modelOverride,
   isMobile = false,
 }: LinearIssueDetailPanelProps) {
   const isClosed = isClosedState(issue.state);
+  const isValidating = validatingIssues.has(issue.identifier);
+  const cached = cachedValidations.get(issue.identifier);
+  const isStale = cached ? isValidationStale(cached.validatedAt) : false;
 
   // Comments state
   const [commentsExpanded, setCommentsExpanded] = useState(true);
+  const [includeCommentsInAnalysis, setIncludeCommentsInAnalysis] = useState(true);
   const {
     comments,
     totalCount,
     loading: commentsLoading,
     error: commentsError,
   } = useIssueComments(issue.id);
+
+  // Helper to get validation options with comments
+  const getValidationOptions = (forceRevalidate = false) => {
+    return {
+      forceRevalidate,
+      modelEntry: modelOverride.effectiveModelEntry, // Pass the full PhaseModelEntry to preserve thinking level
+      comments: includeCommentsInAnalysis && comments.length > 0 ? comments : undefined,
+    };
+  };
 
   return (
     <div className="flex-1 flex flex-col overflow-hidden">
@@ -67,6 +92,100 @@ export function IssueDetailPanel({
           </span>
         </div>
         <div className={cn('flex items-center gap-2 shrink-0', isMobile && 'gap-1')}>
+          {(() => {
+            if (isValidating) {
+              return (
+                <Button variant="default" size="sm" loading>
+                  {isMobile ? '...' : 'Validating...'}
+                </Button>
+              );
+            }
+
+            if (cached && !isStale) {
+              return (
+                <>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => onViewCachedValidation(issue)}
+                    aria-label="View Result"
+                    title="View Result"
+                  >
+                    <CheckCircle className="h-4 w-4 mr-1 text-green-500" />
+                    {!isMobile && 'View Result'}
+                  </Button>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => onShowRevalidateConfirm(getValidationOptions(true))}
+                    title="Re-validate"
+                  >
+                    <RefreshCw className="h-4 w-4" />
+                  </Button>
+                </>
+              );
+            }
+
+            if (cached && isStale) {
+              return (
+                <>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => onViewCachedValidation(issue)}
+                    aria-label="View (stale)"
+                    title="View (stale)"
+                  >
+                    <Clock className="h-4 w-4 mr-1 text-yellow-500" />
+                    {!isMobile && 'View (stale)'}
+                  </Button>
+                  <ModelOverrideTrigger
+                    currentModelEntry={modelOverride.effectiveModelEntry}
+                    onModelChange={modelOverride.setOverride}
+                    phase="validationModel"
+                    isOverridden={modelOverride.isOverridden}
+                    size="sm"
+                    variant="icon"
+                    className="mx-1"
+                  />
+                  <Button
+                    variant="default"
+                    size="sm"
+                    onClick={() => onValidateIssue(issue, getValidationOptions(true))}
+                    aria-label="Re-validate"
+                    title="Re-validate"
+                  >
+                    <Wand2 className="h-4 w-4 mr-1" />
+                    {!isMobile && 'Re-validate'}
+                  </Button>
+                </>
+              );
+            }
+
+            return (
+              <>
+                <ModelOverrideTrigger
+                  currentModelEntry={modelOverride.effectiveModelEntry}
+                  onModelChange={modelOverride.setOverride}
+                  phase="validationModel"
+                  isOverridden={modelOverride.isOverridden}
+                  size="sm"
+                  variant="icon"
+                  className="mr-1"
+                />
+                <Button
+                  variant="default"
+                  size="sm"
+                  onClick={() => onValidateIssue(issue, getValidationOptions())}
+                  aria-label="Validate with AI"
+                  title="Validate with AI"
+                >
+                  <Wand2 className="h-4 w-4 mr-1" />
+                  {!isMobile && 'Validate with AI'}
+                </Button>
+              </>
+            );
+          })()}
           <Button
             variant="secondary"
             size="sm"
@@ -175,21 +294,32 @@ export function IssueDetailPanel({
 
         {/* Comments Section */}
         <div className="mt-6 p-3 rounded-lg bg-muted/30 border border-border">
-          <button
-            className="flex items-center gap-2 text-left"
-            onClick={() => setCommentsExpanded(!commentsExpanded)}
-          >
-            <MessageSquare className="h-4 w-4 text-blue-500" />
-            <span className="text-sm font-medium">
-              Comments {totalCount > 0 && `(${totalCount})`}
-            </span>
-            {commentsLoading && <Spinner size="xs" />}
-            {commentsExpanded ? (
-              <ChevronUp className="h-4 w-4 text-muted-foreground" />
-            ) : (
-              <ChevronDown className="h-4 w-4 text-muted-foreground" />
+          <div className="flex items-center justify-between">
+            <button
+              className="flex items-center gap-2 text-left"
+              onClick={() => setCommentsExpanded(!commentsExpanded)}
+            >
+              <MessageSquare className="h-4 w-4 text-blue-500" />
+              <span className="text-sm font-medium">
+                Comments {totalCount > 0 && `(${totalCount})`}
+              </span>
+              {commentsLoading && <Spinner size="xs" />}
+              {commentsExpanded ? (
+                <ChevronUp className="h-4 w-4 text-muted-foreground" />
+              ) : (
+                <ChevronDown className="h-4 w-4 text-muted-foreground" />
+              )}
+            </button>
+            {comments.length > 0 && (
+              <label className="flex items-center gap-2 text-xs text-muted-foreground cursor-pointer">
+                <Checkbox
+                  checked={includeCommentsInAnalysis}
+                  onCheckedChange={setIncludeCommentsInAnalysis}
+                />
+                Include in AI analysis
+              </label>
             )}
-          </button>
+          </div>
 
           {commentsExpanded && (
             <div className="mt-3">

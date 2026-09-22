@@ -57,6 +57,8 @@ interface UseNavigationProps {
   cycleNextProject: () => void;
   /** Count of unviewed validations to show on GitHub Issues nav item */
   unviewedValidationsCount?: number;
+  /** Count of unviewed validations to show on Linear Issues nav item */
+  unviewedLinearValidationsCount?: number;
   /** Count of unread notifications to show on Notifications nav item */
   unreadNotificationsCount?: number;
   /** Whether spec generation is currently running for the current project */
@@ -77,6 +79,7 @@ export function useNavigation({
   cyclePrevProject,
   cycleNextProject,
   unviewedValidationsCount,
+  unviewedLinearValidationsCount,
   unreadNotificationsCount,
   isSpecGenerating,
 }: UseNavigationProps) {
@@ -246,6 +249,7 @@ export function useNavigation({
             id: 'linear-issues',
             label: 'Issues',
             icon: ListTodo,
+            count: unviewedLinearValidationsCount,
           },
         ],
         collapsible: true,
@@ -282,6 +286,7 @@ export function useNavigation({
     hasGitHubRemote,
     hasLinearConnected,
     unviewedValidationsCount,
+    unviewedLinearValidationsCount,
     unreadNotificationsCount,
     isSpecGenerating,
   ]);

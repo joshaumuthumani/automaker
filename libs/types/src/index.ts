@@ -247,6 +247,8 @@ export type {
   IssueValidationErrorResponse,
   IssueValidationEvent,
   StoredValidation,
+  LinearIssueValidationEvent,
+  LinearStoredValidation,
   GitHubCommentAuthor,
   GitHubComment,
   IssueCommentsResult,

@@ -10,6 +10,7 @@ import { getElectronAPI } from '@/lib/electron';
 import { initializeProject, hasAppSpec, hasAutomakerDir } from '@/lib/project-init';
 import { toast } from 'sonner';
 import { useIsCompact } from '@/hooks/use-media-query';
+import { useLinearConnection } from '@/hooks/queries';
 import type { Project } from '@/lib/electron';
 
 // Sidebar components
@@ -158,6 +159,12 @@ export function Sidebar() {
 
   // Unviewed validations count
   const { count: unviewedValidationsCount } = useUnviewedValidations(currentProject);
+  const { data: hasLinearConnected = false } = useLinearConnection();
+  const { count: unviewedLinearValidationsCount } = useUnviewedValidations(
+    currentProject,
+    'linear',
+    hasLinearConnected
+  );
 
   // Trash operations
   const {
@@ -274,6 +281,7 @@ export function Sidebar() {
     cyclePrevProject,
     cycleNextProject,
     unviewedValidationsCount,
+    unviewedLinearValidationsCount,
     unreadNotificationsCount,
     isSpecGenerating: isCurrentProjectGeneratingSpec,
   });
