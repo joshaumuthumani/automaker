@@ -173,6 +173,73 @@ export interface StoredValidation {
 }
 
 /**
+ * Events emitted during async Linear issue validation
+ *
+ * Mirrors IssueValidationEvent, but Linear issues have no numeric issue number -
+ * their human-readable `identifier` (e.g. "ENG-123") is the stable key instead.
+ */
+export type LinearIssueValidationEvent =
+  | {
+      type: 'issue_validation_start';
+      issueIdentifier: string;
+      issueTitle: string;
+      projectPath: string;
+    }
+  | {
+      type: 'issue_validation_progress';
+      issueIdentifier: string;
+      content: string;
+      projectPath: string;
+    }
+  | {
+      type: 'issue_validation_complete';
+      issueIdentifier: string;
+      issueTitle: string;
+      result: IssueValidationResult;
+      projectPath: string;
+      /** Model used for validation */
+      model: ModelId;
+    }
+  | {
+      type: 'issue_validation_error';
+      issueIdentifier: string;
+      error: string;
+      projectPath: string;
+    }
+  | {
+      type: 'issue_validation_viewed';
+      issueIdentifier: string;
+      projectPath: string;
+    };
+
+/**
+ * Stored Linear validation data with metadata for cache
+ *
+ * Same shape as StoredValidation, keyed by the Linear issue identifier.
+ */
+export interface LinearStoredValidation {
+  /** Linear issue identifier, e.g. "ENG-123" */
+  issueIdentifier: string;
+  /** Issue title at time of validation */
+  issueTitle: string;
+  /**
+   * Absolute path of the project whose codebase was scanned. Linear issues aren't
+   * tied to a repo the way GitHub issues are, so surfacing this lets the reader
+   * catch a mismatch (e.g. the issue was about a different codebase than whichever
+   * project happened to be open when "Analyze with AI" was clicked).
+   */
+  projectPath: string;
+  /** ISO timestamp when validation was performed */
+  validatedAt: string;
+  /** Model used for validation */
+  model: ModelId;
+  /** The validation result */
+  result: IssueValidationResult;
+  /** ISO timestamp when user viewed this validation (undefined = not yet viewed) */
+  viewedAt?: string;
+}
+
+/**
  * Author of a GitHub comment
  */
 export interface GitHubCommentAuthor {

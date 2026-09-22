@@ -3,13 +3,35 @@ import { createLogger } from '@automaker/utils/logger';
 import { getElectronAPI } from '@/lib/electron';
 
 const logger = createLogger('UnviewedValidations');
-import type { Project, StoredValidation } from '@/lib/electron';
+import type { Project } from '@/lib/electron';
+
+/**
+ * Which issue tracker's validations to count.
+ *
+ * Both trackers store the same `validatedAt`/`viewedAt` metadata, so the counting
+ * logic is shared; only the API surface they are fetched from differs.
+ */
+export type ValidationSource = 'github' | 'linear';
+
+/** A stored validation, reduced to the fields this count depends on */
+interface CountableValidation {
+  validatedAt: string;
+  viewedAt?: string;
+}
 
 /**
  * Hook to track the count of unviewed (fresh) issue validations for a project.
  * Also provides a function to decrement the count when a validation is viewed.
+ *
+ * @param currentProject - Project whose validations are counted
+ * @param source - Issue tracker to count validations for (defaults to GitHub)
+ * @param enabled - Skip fetching entirely when false (e.g. the tracker isn't configured)
  */
-export function useUnviewedValidations(currentProject: Project | null) {
+export function useUnviewedValidations(
+  currentProject: Project | null,
+  source: ValidationSource = 'github',
+  enabled = true
+) {
   const [count, setCount] = useState(0);
   const projectPathRef = useRef<string | null>(null);
 
@@ -24,11 +46,11 @@ export function useUnviewedValidations(currentProject: Project | null) {
     if (!projectPath) return;
 
     try {
-      const api = getElectronAPI();
-      if (api.github?.getValidations) {
-        const result = await api.github.getValidations(projectPath);
+      const api = getElectronAPI()[source];
+      if (api?.getValidations) {
+        const result = await api.getValidations(projectPath);
         if (result.success && result.validations) {
-          const unviewed = result.validations.filter((v: StoredValidation) => {
+          const unviewed = (result.validations as CountableValidation[]).filter((v) => {
             if (v.viewedAt) return false;
             // Check if not stale (< 24 hours)
             const hoursSince = (Date.now() - new Date(v.validatedAt).getTime()) / (1000 * 60 * 60);
@@ -43,11 +65,11 @@ export function useUnviewedValidations(currentProject: Project | null) {
     } catch (err) {
       logger.error('Failed to load count:', err);
     }
-  }, []);
+  }, [source]);
 
   // Load initial count and subscribe to events
   useEffect(() => {
-    if (!currentProject?.path) {
+    if (!currentProject?.path || !enabled) {
       setCount(0);
       return;
     }
@@ -56,22 +78,22 @@ export function useUnviewedValidations(currentProject: Project | null) {
     fetchUnviewedCount();
 
     // Subscribe to validation events to update count
-    const api = getElectronAPI();
-    if (api.github?.onValidationEvent) {
-      const unsubscribe = api.github.onValidationEvent((event) => {
+    const api = getElectronAPI()[source];
+    if (api?.onValidationEvent) {
+      const unsubscribe = api.onValidationEvent((event) => {
         if (event.projectPath === currentProject.path) {
-          if (event.type === 'issue_validation_complete') {
-            // New validation completed - refresh count from server for consistency
-            fetchUnviewedCount();
-          } else if (event.type === 'issue_validation_viewed') {
-            // Validation was viewed - refresh count from server for consistency
+          if (
+            event.type === 'issue_validation_complete' ||
+            event.type === 'issue_validation_viewed'
+          ) {
+            // Validation completed or was viewed - refresh count from server for consistency
             fetchUnviewedCount();
           }
         }
       });
       return () => unsubscribe();
     }
-  }, [currentProject?.path, fetchUnviewedCount]);
+  }, [currentProject?.path, source, enabled, fetchUnviewedCount]);
 
   // Function to decrement count when a validation is viewed
   const decrementCount = useCallback(() => {

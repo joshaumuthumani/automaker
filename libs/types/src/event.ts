@@ -27,6 +27,7 @@ export type EventType =
   | 'project:analysis-error'
   | 'spec-regeneration:event'
   | 'issue-validation:event'
+  | 'linear-validation:event'
   | 'ideation:stream'
   | 'ideation:session-started'
   | 'ideation:session-ended'

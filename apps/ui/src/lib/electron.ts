@@ -15,6 +15,8 @@ import type {
   IssueValidationResponse,
   IssueValidationEvent,
   StoredValidation,
+  LinearIssueValidationEvent,
+  LinearStoredValidation,
   ModelId,
   ThinkingLevel,
   ReasoningEffort,
@@ -50,6 +52,8 @@ export type {
   IssueValidationResponse,
   IssueValidationEvent,
   StoredValidation,
+  LinearIssueValidationEvent,
+  LinearStoredValidation,
   GitHubComment,
   IssueCommentsResult,
 };
@@ -520,6 +524,70 @@ export interface LinearAPI {
     totalCount?: number;
     error?: string;
   }>;
+  /**
+   * Start async validation of a Linear issue against a project's codebase.
+   * Linear issues have no numeric issue number, so they are keyed by `identifier`.
+   */
+  validateIssue: (
+    projectPath: string,
+    issue: LinearIssueValidationInput,
+    model?: ModelId,
+    thinkingLevel?: ThinkingLevel,
+    reasoningEffort?: ReasoningEffort,
+    providerId?: string
+  ) => Promise<{ success: boolean; message?: string; issueIdentifier?: string; error?: string }>;
+  /** Check validation status for an issue or all issues */
+  getValidationStatus: (
+    projectPath: string,
+    issueIdentifier?: string
+  ) => Promise<{
+    success: boolean;
+    isRunning?: boolean;
+    startedAt?: string;
+    runningIssues?: string[];
+    error?: string;
+  }>;
+  /** Stop a running validation */
+  stopValidation: (
+    projectPath: string,
+    issueIdentifier: string
+  ) => Promise<{ success: boolean; message?: string; error?: string }>;
+  /** Get stored validations for a project */
+  getValidations: (
+    projectPath: string,
+    issueIdentifier?: string
+  ) => Promise<{
+    success: boolean;
+    validation?: LinearStoredValidation | null;
+    validations?: LinearStoredValidation[];
+    isStale?: boolean;
+    error?: string;
+  }>;
+  /** Delete a stored validation */
+  deleteValidation: (
+    projectPath: string,
+    issueIdentifier: string
+  ) => Promise<{ success: boolean; deleted?: boolean; error?: string }>;
+  /** Mark a validation as viewed by the user */
+  markValidationViewed: (
+    projectPath: string,
+    issueIdentifier: string
+  ) => Promise<{ success: boolean; error?: string }>;
+  /** Subscribe to Linear validation events */
+  onValidationEvent: (callback: (event: LinearIssueValidationEvent) => void) => () => void;
+}
+
+/**
+ * Issue data the UI sends when starting a Linear validation.
+ * Mirrors IssueValidationInput, keyed by identifier instead of issue number.
+ */
+export interface LinearIssueValidationInput {
+  issueIdentifier: string;
+  issueTitle: string;
+  issueBody: string;
+  issueLabels?: string[];
+  /** Comments to include in validation analysis */
+  comments?: LinearComment[];
 }
 
 // Spec Regeneration types
@@ -4100,6 +4168,7 @@ function createMockRunningAgentsAPI(): RunningAgentsAPI {
 
 // Mock GitHub API implementation
 let mockValidationCallbacks: ((event: IssueValidationEvent) => void)[] = [];
+let mockLinearValidationCallbacks: ((event: LinearIssueValidationEvent) => void)[] = [];
 
 function createMockGitHubAPI(): GitHubAPI {
   return {
@@ -4270,6 +4339,104 @@ function createMockLinearAPI(): LinearAPI {
         success: true,
         comments: [],
         totalCount: 0,
+      };
+    },
+    validateIssue: async (
+      projectPath: string,
+      issue: LinearIssueValidationInput,
+      model?: ModelId,
+      thinkingLevel?: ThinkingLevel,
+      reasoningEffort?: ReasoningEffort,
+      providerId?: string
+    ) => {
+      console.log('[Mock] Starting async Linear validation:', {
+        projectPath,
+        issue,
+        model,
+        thinkingLevel,
+        reasoningEffort,
+        providerId,
+      });
+
+      // Simulate async validation in background
+      setTimeout(() => {
+        mockLinearValidationCallbacks.forEach((cb) =>
+          cb({
+            type: 'issue_validation_start',
+            issueIdentifier: issue.issueIdentifier,
+            issueTitle: issue.issueTitle,
+            projectPath,
+          })
+        );
+
+        setTimeout(() => {
+          mockLinearValidationCallbacks.forEach((cb) =>
+            cb({
+              type: 'issue_validation_complete',
+              issueIdentifier: issue.issueIdentifier,
+              issueTitle: issue.issueTitle,
+              result: {
+                verdict: 'valid' as const,
+                confidence: 'medium' as const,
+                reasoning:
+                  'This is a mock validation. In production, the AI provider would analyze the codebase to validate this issue.',
+                relatedFiles: ['src/components/example.tsx'],
+                estimatedComplexity: 'moderate' as const,
+              },
+              projectPath,
+              model: model || 'claude-sonnet',
+            })
+          );
+        }, 2000);
+      }, 100);
+
+      return {
+        success: true,
+        message: `Validation started for issue ${issue.issueIdentifier}`,
+        issueIdentifier: issue.issueIdentifier,
+      };
+    },
+    getValidationStatus: async (projectPath: string, issueIdentifier?: string) => {
+      console.log('[Mock] Getting Linear validation status:', { projectPath, issueIdentifier });
+      return {
+        success: true,
+        isRunning: false,
+        runningIssues: [],
+      };
+    },
+    stopValidation: async (projectPath: string, issueIdentifier: string) => {
+      console.log('[Mock] Stopping Linear validation:', { projectPath, issueIdentifier });
+      return {
+        success: true,
+        message: `Validation for issue ${issueIdentifier} stopped`,
+      };
+    },
+    getValidations: async (projectPath: string, issueIdentifier?: string) => {
+      console.log('[Mock] Getting Linear validations:', { projectPath, issueIdentifier });
+      return {
+        success: true,
+        validations: [],
+      };
+    },
+    deleteValidation: async (projectPath: string, issueIdentifier: string) => {
+      console.log('[Mock] Deleting Linear validation:', { projectPath, issueIdentifier });
+      return {
+        success: true,
+        deleted: true,
+      };
+    },
+    markValidationViewed: async (projectPath: string, issueIdentifier: string) => {
+      console.log('[Mock] Marking Linear validation as viewed:', { projectPath, issueIdentifier });
+      return {
+        success: true,
+      };
+    },
+    onValidationEvent: (callback: (event: LinearIssueValidationEvent) => void) => {
+      mockLinearValidationCallbacks.push(callback);
+      return () => {
+        mockLinearValidationCallbacks = mockLinearValidationCallbacks.filter(
+          (cb) => cb !== callback
+        );
       };
     },
   };

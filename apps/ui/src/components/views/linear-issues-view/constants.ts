@@ -12,3 +12,6 @@ export const LINEAR_PRIORITY_LABELS: Record<number, string> = {
 
 /** Workflow state types that mean the issue is no longer active */
 export const LINEAR_CLOSED_STATE_TYPES = ['completed', 'canceled'];
+
+/** Hours after which a cached AI validation is considered out of date */
+export const VALIDATION_STALENESS_HOURS = 24;

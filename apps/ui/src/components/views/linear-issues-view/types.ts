@@ -1,4 +1,6 @@
-import type { LinearIssue } from '@/lib/electron';
+import type { LinearIssue, LinearStoredValidation } from '@/lib/electron';
+import type { ModelId, PhaseModelEntry } from '@automaker/types';
+import type { ValidateLinearIssueOptions } from './hooks/use-issue-validation';
 
 // ============================================================================
 // Issues Filter State Types
@@ -56,15 +58,34 @@ export interface LinearIssueRowProps {
   onClick: () => void;
   onOpenExternal: () => void;
   formatDate: (date: string) => string;
+  /** Cached validation for this issue (if any) */
+  cachedValidation?: LinearStoredValidation | null;
+  /** Whether validation is currently running for this issue */
+  isValidating?: boolean;
 }
 
 export interface LinearIssueDetailPanelProps {
   issue: LinearIssue;
+  /** Identifiers of issues currently being validated */
+  validatingIssues: Set<string>;
+  /** Cached validations keyed by issue identifier */
+  cachedValidations: Map<string, LinearStoredValidation>;
+  onValidateIssue: (issue: LinearIssue, options?: ValidateLinearIssueOptions) => Promise<void>;
+  onViewCachedValidation: (issue: LinearIssue) => Promise<void>;
   onOpenInLinear: (url: string) => void;
   onClose: () => void;
+  /** Called when user wants to revalidate - receives the validation options including comments */
+  onShowRevalidateConfirm: (options: ValidateLinearIssueOptions) => void;
   /** Called when user wants to create a feature to address this issue */
   onCreateFeature: (issue: LinearIssue) => void;
   formatDate: (date: string) => string;
+  /** Model override state */
+  modelOverride: {
+    effectiveModelEntry: PhaseModelEntry;
+    effectiveModel: ModelId;
+    isOverridden: boolean;
+    setOverride: (entry: PhaseModelEntry | null) => void;
+  };
   /** Whether the view is in mobile mode - shows back button and full-screen detail */
   isMobile?: boolean;
 }

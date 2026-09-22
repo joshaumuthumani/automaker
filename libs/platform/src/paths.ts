@@ -150,6 +150,42 @@ export function getValidationPath(projectPath: string, issueNumber: number): str
 }
 
 /**
+ * Get the Linear validations directory for a project
+ *
+ * Stores Linear issue validation results, organized by issue identifier.
+ * Kept separate from GitHub's validations directory because Linear issues are
+ * keyed by identifier (e.g. "ENG-123"), not by a numeric issue number.
+ *
+ * @param projectPath - Absolute path to project directory
+ * @returns Absolute path to {projectPath}/.automaker/linear-validations
+ */
+export function getLinearValidationsDir(projectPath: string): string {
+  return path.join(getAutomakerDir(projectPath), 'linear-validations');
+}
+
+/**
+ * Get the directory for a specific Linear issue validation
+ *
+ * @param projectPath - Absolute path to project directory
+ * @param issueIdentifier - Linear issue identifier, e.g. "ENG-123"
+ * @returns Absolute path to {projectPath}/.automaker/linear-validations/{issueIdentifier}
+ */
+export function getLinearValidationDir(projectPath: string, issueIdentifier: string): string {
+  return path.join(getLinearValidationsDir(projectPath), issueIdentifier);
+}
+
+/**
+ * Get the validation result file path for a Linear issue
+ *
+ * @param projectPath - Absolute path to project directory
+ * @param issueIdentifier - Linear issue identifier, e.g. "ENG-123"
+ * @returns Absolute path to {projectPath}/.automaker/linear-validations/{issueIdentifier}/validation.json
+ */
+export function getLinearValidationPath(projectPath: string, issueIdentifier: string): string {
+  return path.join(getLinearValidationDir(projectPath, issueIdentifier), 'validation.json');
+}
+
+/**
  * Get the app spec file path for a project
  *
  * Stores the application specification document used for generation.

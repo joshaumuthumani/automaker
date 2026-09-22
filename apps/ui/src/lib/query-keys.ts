@@ -88,6 +88,11 @@ export const queryKeys = {
     issueComments: (issueId: string) => ['linear', 'issues', issueId, 'comments'] as const,
     /** Linear connection status */
     connection: () => ['linear', 'connection'] as const,
+    /**
+     * Linear validations for a project.
+     * Validation runs against a codebase, so unlike the keys above this one is project-scoped.
+     */
+    validations: (projectPath: string) => ['linear', 'validations', projectPath] as const,
   },
 
   // ============================================

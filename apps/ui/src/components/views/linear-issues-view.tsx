@@ -1,21 +1,29 @@
 import { useState, useCallback, useMemo, type ComponentProps } from 'react';
 import { createLogger } from '@automaker/utils/logger';
-import { ListTodo, SearchX } from 'lucide-react';
+import { ListTodo, RefreshCw, SearchX } from 'lucide-react';
 import { useQueryClient } from '@tanstack/react-query';
 import { useNavigate } from '@tanstack/react-router';
-import { getElectronAPI, type LinearIssue } from '@/lib/electron';
+import { getElectronAPI, type IssueValidationResult, type LinearIssue } from '@/lib/electron';
 import { useAppStore } from '@/store/app-store';
 import { Button } from '@/components/ui/button';
+import { ConfirmDialog } from '@/components/ui/confirm-dialog';
 import { LoadingState } from '@/components/ui/loading-state';
 import { ErrorState } from '@/components/ui/error-state';
 import { cn, pathsEqual, generateUUID } from '@/lib/utils';
 import { useIsMobile } from '@/hooks/use-media-query';
 import { toast } from 'sonner';
 import { queryKeys } from '@/lib/query-keys';
-import { useLinearIssuesView, useIssuesFilter } from './linear-issues-view/hooks';
+import {
+  useLinearIssuesView,
+  useIssuesFilter,
+  useIssueValidation,
+  type ValidateLinearIssueOptions,
+} from './linear-issues-view/hooks';
 import { IssueRow, IssueDetailPanel, IssuesListHeader } from './linear-issues-view/components';
+import { ValidationDialog } from './linear-issues-view/dialogs';
 import { AddFeatureDialog } from './board-view/dialogs';
 import { formatDate, isClosedState } from './linear-issues-view/utils';
+import { useModelOverride } from '@/components/shared';
 import type { LinearIssuesFilterState, LinearIssuesStateFilter } from './linear-issues-view/types';
 import { DEFAULT_LINEAR_ISSUES_FILTER_STATE } from './linear-issues-view/types';
 
@@ -28,6 +36,16 @@ type AddFeatureData = Parameters<ComponentProps<typeof AddFeatureDialog>['onAdd'
 export function LinearIssuesView() {
   const navigate = useNavigate();
   const [selectedIssue, setSelectedIssue] = useState<LinearIssue | null>(null);
+
+  // Validation dialog state
+  const [validationResult, setValidationResult] = useState<IssueValidationResult | null>(null);
+  const [validationScannedProjectPath, setValidationScannedProjectPath] = useState<
+    string | undefined
+  >(undefined);
+  const [showValidationDialog, setShowValidationDialog] = useState(false);
+  const [showRevalidateConfirm, setShowRevalidateConfirm] = useState(false);
+  const [pendingRevalidateOptions, setPendingRevalidateOptions] =
+    useState<ValidateLinearIssueOptions | null>(null);
 
   // Add Feature dialog state
   const [showAddFeatureDialog, setShowAddFeatureDialog] = useState(false);
@@ -42,9 +60,23 @@ export function LinearIssuesView() {
     useAppStore();
   const queryClient = useQueryClient();
 
+  // Model override for validation
+  const validationModelOverride = useModelOverride({ phase: 'validationModel' });
+
   const isMobile = useIsMobile();
 
   const { openIssues, closedIssues, loading, refreshing, error, refresh } = useLinearIssuesView();
+
+  const { validatingIssues, cachedValidations, handleValidateIssue, handleViewCachedValidation } =
+    useIssueValidation({
+      selectedIssue,
+      showValidationDialog,
+      onValidationResultChange: (result, scannedProjectPath) => {
+        setValidationResult(result);
+        setValidationScannedProjectPath(scannedProjectPath);
+      },
+      onShowValidationDialogChange: setShowValidationDialog,
+    });
 
   // Combine all issues for filtering
   const allIssues = useMemo(() => [...openIssues, ...closedIssues], [openIssues, closedIssues]);
@@ -100,21 +132,37 @@ export function LinearIssuesView() {
   }, []);
 
   // Build a prefilled description from a Linear issue for the feature dialog
-  const buildIssueDescription = useCallback((issue: LinearIssue) => {
-    const parts = [
-      `**From Linear issue ${issue.identifier}**`,
-      '',
-      issue.description || 'No description provided.',
-    ];
+  const buildIssueDescription = useCallback(
+    (issue: LinearIssue) => {
+      const parts = [
+        `**From Linear issue ${issue.identifier}**`,
+        '',
+        issue.description || 'No description provided.',
+      ];
 
-    if (issue.labels.length > 0) {
-      parts.push('', `**Labels:** ${issue.labels.map((l) => l.name).join(', ')}`);
-    }
+      if (issue.labels.length > 0) {
+        parts.push('', `**Labels:** ${issue.labels.map((l) => l.name).join(', ')}`);
+      }
 
-    parts.push('', `**Linear URL:** ${issue.url}`);
+      parts.push('', `**Linear URL:** ${issue.url}`);
 
-    return parts.join('\n');
-  }, []);
+      // Include cached validation analysis if available
+      const cached = cachedValidations.get(issue.identifier);
+      if (cached?.result) {
+        const validation = cached.result;
+        parts.push('', '---', '', '**AI Validation Analysis:**', validation.reasoning);
+        if (validation.suggestedFix) {
+          parts.push('', `**Suggested Approach:**`, validation.suggestedFix);
+        }
+        if (validation.relatedFiles?.length) {
+          parts.push('', '**Related Files:**', ...validation.relatedFiles.map((f) => `- \`${f}\``));
+        }
+      }
+
+      return parts.join('\n');
+    },
+    [cachedValidations]
+  );
 
   // Memoize the prefilled description to avoid recomputing on every render
   const prefilledDescription = useMemo(
@@ -282,6 +330,8 @@ export function LinearIssuesView() {
                   onClick={() => setSelectedIssue(issue)}
                   onOpenExternal={() => handleOpenInLinear(issue.url)}
                   formatDate={formatDate}
+                  cachedValidation={cachedValidations.get(issue.identifier)}
+                  isValidating={validatingIssues.has(issue.identifier)}
                 />
               ))}
 
@@ -299,6 +349,8 @@ export function LinearIssuesView() {
                       onClick={() => setSelectedIssue(issue)}
                       onOpenExternal={() => handleOpenInLinear(issue.url)}
                       formatDate={formatDate}
+                      cachedValidation={cachedValidations.get(issue.identifier)}
+                      isValidating={validatingIssues.has(issue.identifier)}
                     />
                   ))}
                 </>
@@ -312,13 +364,32 @@ export function LinearIssuesView() {
       {selectedIssue && (
         <IssueDetailPanel
           issue={selectedIssue}
+          validatingIssues={validatingIssues}
+          cachedValidations={cachedValidations}
+          onValidateIssue={handleValidateIssue}
+          onViewCachedValidation={handleViewCachedValidation}
           onOpenInLinear={handleOpenInLinear}
           onClose={() => setSelectedIssue(null)}
+          onShowRevalidateConfirm={(options) => {
+            setPendingRevalidateOptions(options);
+            setShowRevalidateConfirm(true);
+          }}
           onCreateFeature={handleCreateFeature}
           formatDate={formatDate}
+          modelOverride={validationModelOverride}
           isMobile={isMobile}
         />
       )}
+
+      {/* Validation Dialog */}
+      <ValidationDialog
+        open={showValidationDialog}
+        onOpenChange={setShowValidationDialog}
+        issue={selectedIssue}
+        validationResult={validationResult}
+        scannedProjectPath={validationScannedProjectPath}
+        onCreateFeature={handleCreateFeature}
+      />
 
       {/* Add Feature Dialog - opened from issue detail panel */}
       <AddFeatureDialog
@@ -340,6 +411,33 @@ export function LinearIssuesView() {
         prefilledTitle={createFeatureIssue?.title}
         prefilledDescription={prefilledDescription}
         prefilledCategory={LINEAR_FEATURE_CATEGORY}
+      />
+
+      {/* Revalidate Confirmation Dialog */}
+      <ConfirmDialog
+        open={showRevalidateConfirm}
+        onOpenChange={(open) => {
+          setShowRevalidateConfirm(open);
+          if (!open) {
+            setPendingRevalidateOptions(null);
+          }
+        }}
+        title="Re-validate Issue"
+        description={`Are you sure you want to re-validate issue ${selectedIssue?.identifier}? This will run a new AI analysis and replace the existing validation result.`}
+        icon={RefreshCw}
+        iconClassName="text-primary"
+        confirmText="Re-validate"
+        onConfirm={() => {
+          if (selectedIssue && pendingRevalidateOptions) {
+            logger.info('Revalidating with options:', {
+              commentsCount: pendingRevalidateOptions.comments?.length ?? 0,
+            });
+            handleValidateIssue(selectedIssue, {
+              ...pendingRevalidateOptions,
+              forceRevalidate: true,
+            });
+          }
+        }}
       />
     </div>
   );
